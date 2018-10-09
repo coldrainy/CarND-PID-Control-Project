@@ -3,9 +3,12 @@
 #include "json.hpp"
 #include "PID.h"
 #include <math.h>
-
+#include <limits>
+#include <vector>
+#include <fstream>
 // for convenience
 using json = nlohmann::json;
+using namespace std;
 
 // For converting back and forth between radians and degrees.
 constexpr double pi() { return M_PI; }
@@ -35,9 +38,16 @@ int main()
   PID pid;
   PID pid_v;
   // TODO: Initialize the pid variable.
-  pid.Init(0.8,6.0,0.003);
-  pid_v.Init(1,1,0);
-  h.onMessage([&pid,&pid_v](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  //pid.Init(0.8,0.003,6.0);
+  pid.Init(0.043,0.005,0.55);
+  pid_v.Init(0.35,0.0001,0.1);
+  double err=0;
+  double best_err=std::numeric_limits<double>::max();;
+  int step=0;
+  vector<double> err_vec;
+  ofstream outfile("data.txt",ios::trunc);
+
+  h.onMessage([&pid,&pid_v,&err,&best_err,&step,&outfile](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
@@ -59,31 +69,52 @@ int main()
           * NOTE: Feel free to play around with the throttle and speed. Maybe use
           * another PID controller to control the speed!
           */
+          step++;
+          err+=cte*cte;
+          double err_ave=err/step;
+          if(err_ave < best_err)
+              best_err = err_ave;
+          //err_vec.push_back(cte);
+          outfile << step <<"\t"<< cte << "\t" << speed <<"\t" << angle <<"\n";
+
           pid.UpdateError(cte);
-          pid_v.UpdateError(cte);
-          steer_value = -pid.Kp*pid.p_error-pid.Ki*pid.i_error-pid.Kd*pid.d_error;
-          double speed_value = -pid_v.Kp*pid_v.p_error-pid_v.Ki*pid_v.i_error-pid_v.Kd*pid_v.d_error;
+          pid_v.UpdateError(fabs(cte));
+          steer_value = -pid.Kp*pid.p_error
+                        -pid.Ki*pid.i_error
+                        -pid.Kd*pid.d_error;
+          double speed_value = -pid_v.Kp*pid_v.p_error
+                               -pid_v.Ki*pid_v.i_error
+                               -pid_v.Kd*pid_v.d_error
+                               +0.7;
+          if(speed_value < 0.1) speed_value = 0.1;
           if(steer_value>1) steer_value = 1;
           if(steer_value<-1) steer_value = -1;
           // DEBUG
-          std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
+          std::cout << "CTE: " << cte
+                    << " Steering Value: " << steer_value
+                    << " step: " << step
+                    << " best_err: "<< best_err << std::endl;
 
           json msgJson;
           msgJson["steering_angle"] = steer_value;
-          msgJson["throttle"] = 0.2;
-          //msgJson["throttle"] = speed_value;
+          //msgJson["throttle"] = 0.2;
+          msgJson["throttle"] = speed_value;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
           std::cout << msg << std::endl;
           ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+        }else{
         }
       } else {
         // Manual driving
         std::string msg = "42[\"manual\",{}]";
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
+    }else{
+        if(step != 0)
+            outfile.close();
+        cout<<"****here*****"<<endl;
     }
   });
-
   // We don't need this since we're not using HTTP but if it's removed the program
   // doesn't compile :-(
   h.onHttpRequest([](uWS::HttpResponse *res, uWS::HttpRequest req, char *data, size_t, size_t) {
@@ -119,4 +150,6 @@ int main()
     return -1;
   }
   h.run();
+  cout<<"here"<<endl;
+
 }
