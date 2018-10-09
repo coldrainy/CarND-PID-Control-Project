@@ -5,7 +5,7 @@ The parameter I make the steering angle proportional to the sum of the cross tra
 - *Describe how the final hyperparameters were chosen.*
 Well the hyperparameters in my algorithm was chosen manully.I adjust each of the parameter to see which value makes the car run better.I adjust the parameter follow the P,D,I sequence.When one parameter is satisfactory,it will be fixed and I will adjust the next one.I also write a python script to draw the cte,velocity,steering angle with the step number as below.Through this way I find the final parameter which is [0.043,0.005,0.55] for the steering angle and [0.35,0.0001,0.1] for the velocity.And as shown in the graph,the max velocity was about 60.
 - *the final result
-[mv](/home/coldrain/studing/.udacity/CarND-PID-Control-Project/video/circle.m4v)
+[mv](./video/circle.m4v)
 - *middle graph
 # param [0.043,0.005,0.55] [0.3,0,0.1] min speed = 0.1
 ![37.jpg](./image/37.jpg)
